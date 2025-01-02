@@ -1,4 +1,4 @@
-const http = require('http');
+import * as http from "http";
 
 const db = {};
 
@@ -6,6 +6,7 @@ function isObject(data) {
   return typeof data === 'object' && !Array.isArray(data) && data !== null;
 }
 
+// function that test if string is valid json
 function isJSON(data) {
   try {
     JSON.parse(data);
@@ -15,16 +16,18 @@ function isJSON(data) {
   }
 }
 
+// function that test if value is integer
 function isInteger(value) {
   return Number.isInteger(value);
 }
 
-class WebServer {
+export class WebServer {
   constructor(webserverSettings = {}, database = {}) {
-    this.webserverIp (typeof webserverSettings?.ip === 'string' && webserverSettings.ip.match(/^\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}$/) && webserverSettings.ip.split('.').every((s) => s >= 0 && s <= 255)) ? webserverSettings.ip : '0.0.0.0';
+    this.webserverIp = (typeof webserverSettings?.ip === 'string' && webserverSettings.ip.match(/^\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}$/) && webserverSettings.ip.split('.').every((s) => s >= 0 && s <= 255)) ? webserverSettings.ip : '0.0.0.0';
     this.webserverPort = isInteger(webserverSettings?.port) ? webserverSettings.port : 3075;
     // if object is passed use it as database, otherwise create empty object.
     this.db = isObject(database) ? database : {};
+    this.startHttpServer(this.webserverPort);
   }
 
   // Thanks to myself for building such a excellent bare bone webserver for the dialer project :P
@@ -33,19 +36,19 @@ class WebServer {
     if (isInteger(port)) this.webserverPort = port;
     if (this.webserverPort) {
       this.httpServer = http.createServer((req, res) => {
-        let data = []; // This can be transformed into other object types along the way.
+        let dataRaw = []; // This can be transformed into other object types along the way.
 
         // Collect the data as Buffer chunks
         req.on('data', (chunk) => {
-          data.push(chunk); // Store the Buffer chunks without converting
+          dataRaw.push(chunk); // Store the Buffer chunks without converting
         });
 
-        // Listen for the 'end' event when all data has been received
+        // Listen for the 'end' event when all chunks has been received
         // There is no reason to start processing data before this is done, it will just consume memory longer than necessary
         req.on('end', () => {
           const url = new URL('http://' + req.headers.host + req.url);
           // remove leading and trailing slash (/)
-          const pathnameArray = url.pathname.replace(/[^\/|\/$]/g, '').split('/');
+          const pathnameArray = url.pathname.replace(/^\/|\/$/g, '').split('/');
           const pathnameArrayCopy = JSON.parse(JSON.stringify(pathnameArray));
           const params = url.searchParams;
           res.setHeader('Access-Control-Allow-Origin', '*');
@@ -137,7 +140,7 @@ class WebServer {
               // things can only be added to arrays
               if (responseFound) {
                 if (Array.isArray(response)) {
-                  data = Buffer.concat(data).toString();
+                  let data = Buffer.concat(dataRaw).toString();
                   // if JSON it's an object and should be merged.
                   if (isJSON(data)) {
                     data = JSON.parse(data);
@@ -150,8 +153,9 @@ class WebServer {
               }
               break;
             case 'PUT':
-              if (responseFoundLast) {
-                let data = Buffer.concat(data).toString();
+            // Update entire resource
+            if (responseFoundLast) {
+                let data = Buffer.concat(dataRaw).toString();
                 if (isJSON(data)) {
                   data = JSON.parse(data);
                   parent[pathnameArrayCopy[pathnameArrayCopy.length - 1]] = data;
@@ -161,10 +165,11 @@ class WebServer {
                 }
               }
               break;
-            // Update entire resource
             case 'PATCH':
+              // Update parts of object already present, otherwise create them.
+              
               if (responseFoundLast && response !== undefined) {
-                let data = Buffer.concat(data).toString();
+                let data = Buffer.concat(dataRaw).toString();
                 // if JSON it's an object and should be merged.
                 if (isJSON(data)) {
                   data = JSON.parse(data);

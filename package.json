@@ -1,9 +1,11 @@
 {
   "name": "webdb",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Superfast online db using HTTP. Just a javascript object accessible using GET/POST/PUT/PATCH/DELETE. The native nodejs httpserver is used, so this is pure vanilla nodejs, no import/require.",
   "main": "index.ejs",
+  "type": "module",
   "scripts": {
+    "start": "node index.ejs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "andreas.grip@gmail.com",
